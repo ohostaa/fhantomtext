@@ -9,7 +9,7 @@ st.title("ファンパレコラ画像生成ツール")
 # サイドバーに入力フォームを配置
 with st.sidebar:
     st.header("設定")
-    text = st.text_area("テキスト", "サンプル\nテキスト")
+    itext = st.text_area("テキスト", "サンプル\nテキスト")
     
     preset = st.selectbox("グラデーション", ["default", "fire", "ice", "custom"])
     
@@ -33,7 +33,7 @@ if generate_btn:
         try:
             # text2.pyの関数を呼び出し
             img = text.generate_neon_image(
-                text=text,
+                text=itext,
                 gradient_preset=preset if preset != "custom" else "default",
                 custom_color=custom_color,
                 spacing=spacing,
