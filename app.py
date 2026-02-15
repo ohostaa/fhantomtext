@@ -237,11 +237,6 @@ html_code = """
         <div class="canvas-container">
             <canvas id="mainCanvas"></canvas>
         </div>
-        <div class="toolbar">
-            <button id="downloadBtn" class="download-btn">
-                <span>Download PNG</span>
-            </button>
-        </div>
     </div>
 </div>
 
