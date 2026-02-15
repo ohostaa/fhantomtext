@@ -3,7 +3,6 @@ import streamlit.components.v1 as components
 
 st.set_page_config(page_title="Neon Text Generator", layout="wide", initial_sidebar_state="collapsed")
 
-# StreamlitのUIを隠してフルスクリーンiframe用のスタイルを適用
 st.markdown("""
 <style>
     header, footer { visibility: hidden; display: none; }
@@ -39,7 +38,6 @@ html_code = """
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<!-- 重要: ビューポート設定を追加してスマホでの実寸表示を有効化 -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <style>
     :root {
@@ -62,11 +60,9 @@ html_code = """
         display: flex;
         width: 100%;
         height: 100%;
-        /* デフォルトはデスクトップ用の横並び */
         flex-direction: row; 
     }
 
-    /* --- PC用サイドバー設定 --- */
     .sidebar {
         width: 340px;
         min-width: 340px;
@@ -78,7 +74,6 @@ html_code = """
         box-sizing: border-box;
         display: flex; flex-direction: column; gap: 20px;
         z-index: 10;
-        /* スクロールバー装飾 */
         scrollbar-width: thin;
         scrollbar-color: #555 #1e1e1e;
     }
@@ -108,7 +103,7 @@ html_code = """
         color: white; padding: 10px; border-radius: 6px; box-sizing: border-box; font-size: 14px;
         font-family: inherit;
     }
-    /* スマホでの入力ズーム防止のためにフォントサイズ調整 */
+
     @media screen and (max-width: 768px) {
         input[type="text"], textarea, select { font-size: 16px; }
     }
@@ -138,7 +133,7 @@ html_code = """
         background-size: 24px 24px;
         overflow: hidden;
         position: relative;
-        padding: 10px; /* スマホで端が見切れないようにパディング */
+        padding: 10px;
         box-sizing: border-box;
     }
 
@@ -153,34 +148,29 @@ html_code = """
     #custom-color-group { display: none; margin-top: 10px; }
     input[type="color"] { width: 100%; height: 40px; border: none; padding: 0; cursor: pointer; border-radius: 4px; }
 
-    /* --- メディアクエリ: スマホ対応 (幅768px以下) --- */
     @media screen and (max-width: 768px) {
         .app-container {
-            /* 縦並びの逆順（プレビューを上、操作パネルを下にするため） */
             flex-direction: column-reverse; 
         }
 
         .sidebar {
-            width: 100%;      /* 横幅いっぱい */
-            min-width: 0;     /* 固定幅解除 */
-            height: 60%;      /* 画面下半分(60%)を操作エリアに */
+            width: 100%;   
+            min-width: 0;  
+            height: 60%;     
             border-right: none;
             border-top: 1px solid var(--border-color);
             padding: 15px;
-            /* スクロールしやすくする */
             -webkit-overflow-scrolling: touch; 
         }
 
         .main-area {
             width: 100%;
-            height: 40%;      /* 画面上半分(40%)をプレビューエリアに */
-            flex: none;       /* サイズ固定 */
-        }
-        
-        /* タイトルサイズ調整 */
+            height: 40%;    
+            flex: none;      
+        }    
+
         h2 { font-size: 1.0em !important; }
         
-        /* キャンバス背景のグリッドを細かく */
         .canvas-container { background-size: 16px 16px; }
     }
 
@@ -242,7 +232,7 @@ html_code = """
         </div>
         <div class="control-item">
             <label>発光強度 <span id="v_gl" class="val-display">0.8</span></label>
-            <input type="range" id="glow" min="0" max="1.5" value="0.8" step="0.05">
+            <input type="range" id="glow" min="0" max="5" value="0.8" step="0.05">
         </div>
         
         <div style="height:100px;"></div>
@@ -330,10 +320,7 @@ html_code = """
         } else {
             colors = GRADIENTS[preset].map(hexToRgb);
         }
-
-        // \\nエスケープの処理を修正 (Python文字列内でのエスケープを考慮)
-        // Python側でダブルスラッシュが入っているため、JSでは split('\\\\n') で改行検知
-        // あるいはHTML文字列リテラル内なので、シンプルに '\\n' で来る可能性が高い
+        
         const lines = text.split('\\n'); 
         
         const lineHeight = fontSize * 1.15;
