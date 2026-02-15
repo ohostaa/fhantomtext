@@ -1,34 +1,45 @@
 import streamlit as st
 import streamlit.components.v1 as components
 
-# ページ設定 (layout="wide" は必須)
+# ページ設定
 st.set_page_config(page_title="Neon Text Generator", layout="wide", initial_sidebar_state="collapsed")
 
-# ■ CSSハック: Streamlitの標準UIを消し去り、全画面を使う設定 ■
+# ■ CSSハック: 全画面固定・スクロール禁止設定 ■
 st.markdown("""
 <style>
-    /* Streamlitのヘッダー、フッター、パディングを削除 */
-    header {visibility: hidden;}
-    footer {visibility: hidden;}
+    /* ヘッダー・フッター・パディング全削除 */
+    header, footer { visibility: hidden; display: none; }
+    
     .block-container {
-        padding-top: 0rem !important;
-        padding-bottom: 0rem !important;
-        padding-left: 0rem !important;
-        padding-right: 0rem !important;
+        padding: 0 !important;
         max-width: 100% !important;
     }
+    
+    /* アプリ全体のスクロール禁止 */
+    body {
+        overflow: hidden !important;
+        margin: 0 !important;
+    }
+    
+    /* Streamlitのメインコンテナのスクロール禁止 */
+    .stApp {
+        overflow: hidden !important;
+    }
+
     /* iframeを画面いっぱいに広げる */
     iframe {
-        height: 100vh !important;
+        position: fixed;
+        top: 0;
+        left: 0;
         width: 100vw !important;
-    }
-    /* スクロールバーを隠す（アプリ内で制御するため） */
-    body {
-        overflow: hidden;
+        height: 100vh !important;
+        border: none;
+        z-index: 9999;
     }
 </style>
 """, unsafe_allow_html=True)
 
+# HTML/JSコード（内容は変更なし）
 html_code = """
 <!DOCTYPE html>
 <html lang="ja">
@@ -57,26 +68,21 @@ html_code = """
         height: 100%;
     }
 
-    /* --- 左側: 設定パネル (ここだけスクロールさせる) --- */
+    /* 左: 設定パネル (縦スクロール許可) */
     .sidebar {
         width: 340px;
         min-width: 340px;
         background: var(--panel-bg);
         border-right: 1px solid var(--border-color);
         padding: 20px;
-        
-        /* 縦スクロール有効化 */
-        overflow-y: auto;
+        overflow-y: auto; /* ここだけスクロール可能 */
         height: 100%; 
         box-sizing: border-box;
-        
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
+        display: flex; flex-direction: column; gap: 20px;
         z-index: 10;
     }
     
-    /* スクロールバーのデザイン */
+    /* スクロールバー装飾 */
     .sidebar::-webkit-scrollbar { width: 8px; }
     .sidebar::-webkit-scrollbar-track { background: #1e1e1e; }
     .sidebar::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
@@ -105,15 +111,15 @@ html_code = """
     textarea { resize: vertical; min-height: 100px; }
     input[type="range"] { width: 100%; cursor: pointer; margin-top: 5px; }
 
-    /* --- 右側: プレビューエリア (完全固定) --- */
+    /* 右: プレビューエリア (完全固定) */
     .main-area {
         flex: 1;
         display: flex;
         flex-direction: column;
-        background: #000; /* 背景を黒で統一 */
+        background: #000;
         position: relative;
         height: 100%;
-        overflow: hidden; /* はみ出し禁止 */
+        overflow: hidden;
     }
     
     .canvas-container {
@@ -169,14 +175,13 @@ html_code = """
 <body>
 
 <div class="app-container">
-    <!-- 左: 設定パネル -->
     <div class="sidebar">
         <h2 style="margin:0 0 10px 0; font-size:1.2em; color:#fff;">Neon Generator</h2>
         
         <div class="group-title">Content</div>
         <div class="control-item">
             <label>Text</label>
-            <textarea id="textInput" spellcheck="false">サンプル\nテキスト</textarea>
+            <textarea id="textInput" spellcheck="false">サンプル\\nテキスト</textarea>
         </div>
         
         <div class="group-title">Style & Color</div>
@@ -225,10 +230,9 @@ html_code = """
             <input type="range" id="glow" min="0" max="1.5" value="0.3" step="0.05">
         </div>
         
-        <div style="height:100px;"></div> <!-- 下部余白 -->
+        <div style="height:100px;"></div>
     </div>
 
-    <!-- 右: プレビューエリア -->
     <div class="main-area">
         <div class="canvas-container">
             <canvas id="mainCanvas"></canvas>
@@ -311,100 +315,4 @@ html_code = """
         ctx.textBaseline = 'middle';
 
         let colors;
-        if (preset === 'custom') {
-            const c = hexToRgb(els.customC.value);
-            colors = [c, c, c];
-        } else {
-            colors = GRADIENTS[preset].map(hexToRgb);
-        }
-
-        const lines = text.split('\\\\n');
-        const lineHeight = fontSize * 1.15;
-        const totalHeight = lines.length * lineHeight;
-        const startY = (HEIGHT - totalHeight) / 2 + lineHeight / 2;
-        
-        let totalChars = 0;
-        lines.forEach(l => totalChars += l.length);
-        if (totalChars === 0) totalChars = 1;
-
-        let charCounter = 0;
-        ctx.globalCompositeOperation = isTrans ? 'source-over' : 'lighter';
-
-        lines.forEach((line, lineIdx) => {
-            let lineWidth = 0;
-            for (let char of line) lineWidth += ctx.measureText(char).width + spacing;
-            if (line.length > 0) lineWidth -= spacing;
-            
-            let currentX = (WIDTH - lineWidth) / 2;
-            const baseY = startY + (lineIdx * lineHeight);
-
-            for (let char of line) {
-                let progress = charCounter / Math.max(totalChars - 1, 1);
-                let col = (progress < 0.5) 
-                    ? interpolate(colors[0], colors[1], progress * 2)
-                    : interpolate(colors[1], colors[2], (progress - 0.5) * 2);
-                const colorStr = `rgb(${col.r},${col.g},${col.b})`;
-
-                let yOffset = 0;
-                if (shakeVal > 0) {
-                    if (pattern === 'fixed') {
-                        yOffset = (charCounter % 2 === 0 ? -1 : 1) * shakeVal;
-                    } else if (pattern === 'sin') {
-                        yOffset = Math.sin(charCounter * 0.8) * shakeVal;
-                    } else { 
-                        const seed = charCounter * 99.99;
-                        const rnd = Math.sin(seed); 
-                        const direction = (charCounter % 2 === 0) ? -1 : 1;
-                        yOffset = direction * (shakeVal * (0.8 + Math.abs(rnd))); 
-                    }
-                }
-
-                const passes = [[60, 0.4], [40, 0.5], [20, 0.8], [10, 1.0]];
-                passes.forEach(([blur, alphaMul]) => {
-                    ctx.shadowBlur = blur;
-                    ctx.shadowColor = colorStr;
-                    ctx.fillStyle = colorStr;
-                    ctx.globalAlpha = alphaMul * glowVal;
-                    ctx.fillText(char, currentX, baseY + yOffset);
-                });
-
-                ctx.shadowBlur = 0;
-                ctx.globalAlpha = 1.0;
-                ctx.fillStyle = "#FFFFFF";
-                ctx.fillText(char, currentX, baseY + yOffset);
-
-                currentX += ctx.measureText(char).width + spacing;
-                charCounter++;
-            }
-        });
-    }
-
-    Object.keys(els).forEach(key => {
-        if (!els[key] || key === 'customGrp' || key === 'dl') return;
-        els[key].addEventListener('input', (e) => {
-            if (valDisplays[key]) valDisplays[key].textContent = e.target.value;
-            if (key === 'preset') els.customGrp.style.display = (e.target.value === 'custom') ? 'block' : 'none';
-            draw();
-        });
-    });
-
-    els.dl.addEventListener('click', () => {
-        const link = document.createElement('a');
-        link.download = 'neon_text.png';
-        link.href = cvs.toDataURL('image/png');
-        link.click();
-    });
-
-    // リサイズ対応
-    window.addEventListener('resize', draw);
-    
-    document.fonts.ready.then(draw);
-    setTimeout(draw, 500); 
-
-</script>
-</body>
-</html>
-"""
-
-# スクロールバーなしで全画面埋め込み
-components.html(html_code, height=1000, scrolling=False)
+        if (preset === 'custom
