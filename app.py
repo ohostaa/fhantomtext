@@ -278,6 +278,19 @@ html_code = """
         'ice': ["#0099FF", "#00CCFF", "#FFFFFF"]
     };
 
+    function hexToRgb(hex) {
+        const bigint = parseInt(hex.slice(1), 16);
+        return { r: (bigint >> 16) & 255, g: (bigint >> 8) & 255, b: bigint & 255 };
+    }
+
+    function interpolate(c1, c2, f) {
+        return {
+            r: Math.round(c1.r + (c2.r - c1.r) * f),
+            g: Math.round(c1.g + (c2.g - c1.g) * f),
+            b: Math.round(c1.b + (c2.b - c1.b) * f)
+        };
+    }
+
     function draw() {
         cvs.width = WIDTH;
         cvs.height = HEIGHT;
@@ -300,63 +313,46 @@ html_code = """
 
         ctx.font = `${fontSize}px 'Shippori Mincho B1'`;
         ctx.textBaseline = 'middle';
+
         ctx.lineJoin = 'round';
         ctx.lineCap = 'round';
 
+        let colors;
+        if (preset === 'custom') {
+            const c = hexToRgb(els.customC.value);
+            colors = [c, c, c];
+        } else {
+            colors = GRADIENTS[preset].map(hexToRgb);
+        }
+        
         const lines = text.split('\\\\\\\\n'); 
+        
         const lineHeight = fontSize * 1.15;
         const totalHeight = lines.length * lineHeight;
         const startY = (HEIGHT - totalHeight) / 2 + lineHeight / 2;
-
-        // 1. まず全体の描画幅(minX 〜 maxX)を計算してグラデーションの範囲を決める
-        //    複数行ある場合も、一番長い行を基準に全体で統一した横グラデーションにする
-        let maxLineWidth = 0;
-        lines.forEach(line => {
-            let w = 0;
-            for (let char of line) w += ctx.measureText(char).width + spacing;
-            if (line.length > 0) w -= spacing;
-            if (w > maxLineWidth) maxLineWidth = w;
-        });
-
-        const startX = (WIDTH - maxLineWidth) / 2;
-        const endX = startX + maxLineWidth;
-
-        // 2. テキスト全体にかかる横方向グラデーションを作成
-        //    createLinearGradient(x0, y0, x1, y1) -> 左(startX)から右(endX)へ
-        const grad = ctx.createLinearGradient(startX, 0, endX, 0);
-
-        let palette;
-        if (preset === 'custom') {
-            const c = els.customC.value;
-            palette = [c, c, c];
-        } else {
-            palette = GRADIENTS[preset];
-        }
-
-        if (palette.length === 1) {
-            grad.addColorStop(0, palette[0]);
-            grad.addColorStop(1, palette[0]);
-        } else {
-            palette.forEach((color, i) => {
-                grad.addColorStop(i / (palette.length - 1), color);
-            });
-        }
+        
+        let totalChars = 0;
+        lines.forEach(l => totalChars += l.length);
+        if (totalChars === 0) totalChars = 1;
 
         let charCounter = 0;
         ctx.globalCompositeOperation = isTrans ? 'source-over' : 'lighter';
 
-        // 3. 文字を描画 (作成した横グラデーション grad を使用)
         lines.forEach((line, lineIdx) => {
             let lineWidth = 0;
             for (let char of line) lineWidth += ctx.measureText(char).width + spacing;
             if (line.length > 0) lineWidth -= spacing;
             
-            // 行ごとのセンタリング位置
             let currentX = (WIDTH - lineWidth) / 2;
             const baseY = startY + (lineIdx * lineHeight);
 
             for (let char of line) {
-                // 揺れ計算
+                let progress = charCounter / Math.max(totalChars - 1, 1);
+                let col = (progress < 0.5) 
+                    ? interpolate(colors[0], colors[1], progress * 2)
+                    : interpolate(colors[1], colors[2], (progress - 0.5) * 2);
+                const colorStr = `rgb(${col.r},${col.g},${col.b})`;
+
                 let yOffset = 0;
                 if (shakeVal > 0) {
                     if (pattern === 'fixed') {
@@ -371,43 +367,26 @@ html_code = """
                     }
                 }
 
-                // 発光（オーラ）部分の描画:
-                // StrokeもFillも、共通の「全体横グラデーション(grad)」を使うことで、
-                // 文字位置に応じた色が自動的に適用される
                 const passes = [[60, 0.4], [40, 0.5], [20, 0.8], [10, 1.0]];
                 passes.forEach(([blur, alphaMul]) => {
-                    // Blur (PC用)
                     ctx.shadowBlur = blur;
-                    ctx.shadowColor = "rgba(255,255,255,0.5)"; // 色はGradientで乗るので影色は白か薄い色で補助
-                    // ※ただしShadowColorにGradientは指定できないため、
-                    //   正確な色付きBlurを出すならStrokeでの代用がメインになる
+                    ctx.shadowColor = colorStr;
+                    ctx.fillStyle = colorStr;
                     
-                    // Stroke (スマホ/強力発光用)
-                    // ここに grad を指定すると、枠線も左から右へ綺麗にグラデーションする
-                    ctx.strokeStyle = grad;
+                    ctx.strokeStyle = colorStr;
                     ctx.lineWidth = blur * 0.6; 
-                    
+
                     const combinedAlpha = alphaMul * glowVal;
-                    ctx.globalAlpha = combinedAlpha * 0.4; // 枠線は薄く
+                    ctx.globalAlpha = combinedAlpha * 0.4;
                     ctx.strokeText(char, currentX, baseY + yOffset);
-                    
-                    // Fill (塗りつぶしの影)
-                    ctx.fillStyle = grad; 
+
                     ctx.globalAlpha = combinedAlpha;
                     ctx.fillText(char, currentX, baseY + yOffset);
                 });
 
-                // 文字本体（最前面）
-                // ここも白ベタではなく、全体グラデーションで塗る
-                // もし「芯を白くしたい」場合は、上から白を薄く重ねる
-                ctx.shadowBlur = 0; 
+                ctx.shadowBlur = 0;
                 ctx.globalAlpha = 1.0;
-                ctx.fillStyle = grad; // 全体グラデーションで描画
-                ctx.fillText(char, currentX, baseY + yOffset);
-                
-                // 芯を少し明るくして発光感を出す（オプション：白を薄く重ねる）
                 ctx.fillStyle = "#FFFFFF";
-                ctx.globalAlpha = 0.5; // 白の不透明度
                 ctx.fillText(char, currentX, baseY + yOffset);
 
                 currentX += ctx.measureText(char).width + spacing;
