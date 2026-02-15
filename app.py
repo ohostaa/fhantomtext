@@ -233,7 +233,7 @@ html_code = """
         </div>
         <div class="control-item">
             <label>発光強度 <span id="v_gl" class="val-display">0.8</span></label>
-            <input type="range" id="glow" min="0" max="1" value="0.8" step="0.05">
+            <input type="range" id="glow" min="0" max="1" value="0.8" step="0.025">
         </div>
         
         <div style="height:100px;"></div>
