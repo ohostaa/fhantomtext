@@ -313,6 +313,9 @@ html_code = """
         ctx.font = `${fontSize}px 'Shippori Mincho B1'`;
         ctx.textBaseline = 'middle';
 
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+
         let colors;
         if (preset === 'custom') {
             const c = hexToRgb(els.customC.value);
@@ -321,7 +324,7 @@ html_code = """
             colors = GRADIENTS[preset].map(hexToRgb);
         }
         
-        const lines = text.split('\\n'); 
+        const lines = text.split('\\\\n'); 
         
         const lineHeight = fontSize * 1.15;
         const totalHeight = lines.length * lineHeight;
@@ -368,7 +371,15 @@ html_code = """
                     ctx.shadowBlur = blur;
                     ctx.shadowColor = colorStr;
                     ctx.fillStyle = colorStr;
-                    ctx.globalAlpha = alphaMul * glowVal;
+                    
+                    ctx.strokeStyle = colorStr;
+                    ctx.lineWidth = blur * 0.6; 
+
+                    const combinedAlpha = alphaMul * glowVal;
+                    ctx.globalAlpha = combinedAlpha * 0.4;
+                    ctx.strokeText(char, currentX, baseY + yOffset);
+
+                    ctx.globalAlpha = combinedAlpha;
                     ctx.fillText(char, currentX, baseY + yOffset);
                 });
 
