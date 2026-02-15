@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Text Generator (Client Side)</title>
+    <!-- Google Fontsからしっぽり明朝を読み込み -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@800&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            height: 100vh;
+            box-sizing: border_box;
+        }
+        .controls {
+            width: 300px;
+            background: #1e1e1e;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-y: auto;
+            margin-right: 20px;
+            flex-shrink: 0;
+        }
+        .preview {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+            border-radius: 8px;
+            border: 1px solid #333;
+            overflow: hidden;
+            position: relative;
+        }
+        canvas {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            /* 透明背景を表す市松模様 */
+            background-image: linear-gradient(45deg, #222 25%, transparent 25%), 
+                              linear-gradient(-45deg, #222 25%, transparent 25%), 
+                              linear-gradient(45deg, transparent 75%, #222 75%), 
+                              linear-gradient(-45deg, transparent 75%, #222 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+        .control-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-size: 0.9em; color: #ccc; }
+        input[type="range"], select, input[type="text"], textarea {
+            width: 100%;
+            background: #333;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 5px;
+            border-radius: 4px;
+        }
+        textarea { height: 80px; resize: vertical; }
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #4896A0;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        button:hover { background: #5abac6; }
+        .value-display { float: right; font-size: 0.8em; color: #aaa; }
+    </style>
+</head>
+<body>
+
+<div class="controls">
+    <h2>設定</h2>
+    
+    <div class="control-group">
+        <label>テキスト</label>
+        <textarea id="textInput">サンプル
+テキスト</textarea>
+    </div>
+
+    <div class="control-group">
+        <label>グラデーション</label>
+        <select id="presetSelect">
+            <option value="default">Default (Blue/Purple)</option>
+            <option value="fire">Fire (Red/Yellow)</option>
+            <option value="ice">Ice (Blue/Cyan)</option>
+            <option value="custom">Custom (Single Color)</option>
+        </select>
+    </div>
+
+    <div class="control-group" id="customColorGroup" style="display:none;">
+        <label>カスタムカラー</label>
+        <input type="color" id="customColorInput" value="#ffffff" style="height:40px;">
+    </div>
+
+    <div class="control-group">
+        <label>揺れパターン</label>
+        <select id="shakePattern">
+            <option value="random">Random</option>
+            <option value="sin">Sine Wave</option>
+            <option value="fixed">Fixed (Alternating)</option>
+        </select>
+    </div>
+
+    <div class="control-group">
+        <label>揺れ幅 (Offset) <span id="val_shake" class="value-display">2</span></label>
+        <input type="range" id="shakeRange" min="0" max="20" value="2" step="0.5">
+    </div>
+
+    <div class="control-group">
+        <label>発光強度 (Glow) <span id="val_glow" class="value-display">0.3</span></label>
+        <input type="range" id="glowRange" min="0" max="1" value="0.3" step="0.05">
+    </div>
+
+    <div class="control-group">
+        <label>文字間隔 (Spacing) <span id="val_spacing" class="value-display">3</span></label>
+        <input type="range" id="spacingRange" min="-5" max="30" value="3">
+    </div>
+
+    <div class="control-group">
+        <label>フォントサイズ <span id="val_fontsize" class="value-display">120</span></label>
+        <input type="range" id="fontSizeRange" min="20" max="300" value="120">
+    </div>
+
+    <div class="control-group">
+        <label>
+            <input type="checkbox" id="transparentCheck" style="width:auto;"> 背景透過
+        </label>
+    </div>
+
+    <button id="downloadBtn">画像を保存 (PNG)</button>
+</div>
+
+<div class="preview">
+    <canvas id="mainCanvas"></canvas>
+</div>
+
+<script>
+    // --- 設定定数 ---
+    const WIDTH = 1920;
+    const HEIGHT = 1080;
+    const OFFSET_BASE = 2;
+    const FONT_FAMILY = '"Shippori Mincho B1", serif';
+
+    // プリセット色定義 (Hex)
+    const GRADIENTS = {
+        'default': ["#4896A0", "#714A9D", "#984B93"],
+        'fire': ["#FF0000", "#FF6600", "#FFFF00"],
+        'ice': ["#0099FF", "#00CCFF", "#FFFFFF"]
+    };
+
+    // --- DOM要素の取得 ---
+    const canvas = document.getElementById('mainCanvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    
+    // 入力要素
+    const textInput = document.getElementById('textInput');
+    const presetSelect = document.getElementById('presetSelect');
+    const customColorInput = document.getElementById('customColorInput');
+    const customColorGroup = document.getElementById('customColorGroup');
+    const shakePatternSelect = document.getElementById('shakePattern');
+    const shakeRange = document.getElementById('shakeRange');
+    const glowRange = document.getElementById('glowRange');
+    const spacingRange = document.getElementById('spacingRange');
+    const fontSizeRange = document.getElementById('fontSizeRange');
+    const transparentCheck = document.getElementById('transparentCheck');
+    const downloadBtn = document.getElementById('downloadBtn');
+
+    // 数値表示用
+    const valMap = {
+        'shakeRange': 'val_shake',
+        'glowRange': 'val_glow',
+        'spacingRange': 'val_spacing',
+        'fontSizeRange': 'val_fontsize'
+    };
+
+    // --- ユーティリティ関数 ---
+
+    // Hex(#RRGGBB) -> {r, g, b}
+    function hexToRgb(hex) {
+        const bigint = parseInt(hex.slice(1), 16);
+        return { r: (bigint >> 16) & 255, g: (bigint >> 8) & 255, b: bigint & 255 };
+    }
+
+    // 2色間の線形補間
+    function interpolateColor(c1, c2, factor) {
+        return {
+            r: Math.round(c1.r + (c2.r - c1.r) * factor),
+            g: Math.round(c1.g + (c2.g - c1.g) * factor),
+            b: Math.round(c1.b + (c2.b - c1.b) * factor)
+        };
+    }
+
+    // RGBオブジェクト -> "rgb(r,g,b)"文字列
+    function rgbToString(c) {
+        return `rgb(${c.r}, ${c.g}, ${c.b})`;
+    }
+
+    // メイン描画関数
+    function draw() {
+        // キャンバスリセット
+        canvas.width = WIDTH;
+        canvas.height = HEIGHT;
+        
+        // 背景色設定
+        if (!transparentCheck.checked) {
+            ctx.fillStyle = "#000000";
+            ctx.fillRect(0, 0, WIDTH, HEIGHT);
+        } else {
+            ctx.clearRect(0, 0, WIDTH, HEIGHT);
+        }
+
+        const text = textInput.value;
+        const lines = text.split('\n');
+        const fontSize = parseInt(fontSizeRange.value);
+        const lineHeight = fontSize * 1.15;
+        const letterSpacing = parseInt(spacingRange.value);
+        const shakeVal = parseFloat(shakeRange.value);
+        const glowVal = parseFloat(glowRange.value);
+        const pattern = shakePatternSelect.value;
+        const preset = presetSelect.value;
+        
+        ctx.font = `${fontSize}px ${FONT_FAMILY}`;
+        ctx.textBaseline = 'middle';
+
+        // 色の準備
+        let colors = [];
+        if (preset === 'custom') {
+            const c = hexToRgb(customColorInput.value);
+            colors = [c, c, c];
+        } else {
+            colors = GRADIENTS[preset].map(hexToRgb);
+        }
+
+        // テキスト全体の高さを計算して中央配置
+        const totalHeight = lines.length * lineHeight;
+        const startY = (HEIGHT - totalHeight) / 2 + lineHeight / 2;
+
+        // 全文字数をカウント（グラデーション用）
+        let totalChars = 0;
+        lines.forEach(line => totalChars += line.length);
+        if (totalChars === 0) totalChars = 1;
+
+        let charCounter = 0;
+
+        // --- 描画ロジック ---
+        // グロー効果（発光）は、Canvasの shadowBlur を使って再現します。
+        // Python版同様、重ねがけすることで強い発光を作ります。
+        
+        // 文字ごとの情報を事前に計算（位置、色、揺れ）
+        const charData = [];
+
+        lines.forEach((line, lineIdx) => {
+            const measure = ctx.measureText(line);
+            // 文字間隔を含めた幅計算がCanvasだと面倒なので、文字単位で配置する
+            let lineWidth = 0;
+            for(let char of line) {
+                lineWidth += ctx.measureText(char).width + letterSpacing;
+            }
+            if(line.length > 0) lineWidth -= letterSpacing;
+
+            let currentX = (WIDTH - lineWidth) / 2;
+            const baseY = startY + (lineIdx * lineHeight);
+
+            for (let char of line) {
+                // 色計算
+                let color;
+                const progress = charCounter / Math.max(totalChars - 1, 1);
+                if (progress < 0.5) {
+                    color = interpolateColor(colors[0], colors[1], progress * 2);
+                } else {
+                    color = interpolateColor(colors[1], colors[2], (progress - 0.5) * 2);
+                }
+
+                // 揺れ計算
+                let yOffset = 0;
+                if (pattern === 'fixed') {
+                    const direction = (charCounter % 2 === 0) ? -1 : 1;
+                    yOffset = direction * shakeVal;
+                } else if (pattern === 'sin') {
+                    yOffset = shakeVal * Math.sin(charCounter * 0.8);
+                } else { // random (擬似乱数)
+                    // JSのMath.random()は実行ごとに変わるので、シード付き乱数代わりの簡易ハッシュを使う
+                    const seed = charCounter * 123.45; 
+                    const pseudoRandom = Math.abs(Math.sin(seed));
+                    const direction = (charCounter % 2 === 0) ? -1 : 1;
+                    const randomScale = 0.5 + pseudoRandom; // 0.5 ~ 1.5
+                    const base = OFFSET_BASE * randomScale;
+                    const v = shakeVal * randomScale;
+                    yOffset = direction * (base + v);
+                }
+
+                charData.push({
+                    char: char,
+                    x: currentX,
+                    y: baseY + yOffset,
+                    color: rgbToString(color)
+                });
+
+                currentX += ctx.measureText(char).width + letterSpacing;
+                charCounter++;
+            }
+        });
+
+        // 描画モードを「加算」にするとネオンっぽさが増す
+        // (ただし背景透過時は合成がおかしくなることがあるので通常合成にする)
+        if(!transparentCheck.checked) {
+            ctx.globalCompositeOperation = 'lighter'; 
+        } else {
+            ctx.globalCompositeOperation = 'source-over';
+        }
+
+        // ■ グロー描画レイヤー ■
+        // Python版のループ回数と強度をCanvasのShadowBlurで近似
+        // blurRadius, alpha
+        const glowPasses = [
+            { blur: 60, alpha: 0.4 * glowVal },
+            { blur: 40, alpha: 0.5 * glowVal },
+            { blur: 20, alpha: 0.8 * glowVal },
+            { blur: 10, alpha: 1.0 * glowVal }
+        ];
+
+        glowPasses.forEach(pass => {
+            ctx.shadowBlur = pass.blur;
+            charData.forEach(d => {
+                // シャドウの色を文字色と同じにする
+                // アルファ値を調整して適用
+                ctx.shadowColor = d.color; 
+                ctx.fillStyle = d.color;
+                
+                // CanvasのShadowは「描画したものの背後」に出るが、
+                // 本体を透明に近くして、影(光)だけを強調して重ねるテクニック
+                ctx.globalAlpha = pass.alpha;
+                ctx.fillText(d.char, d.x, d.y);
+            });
+        });
+
+        // ■ 本体描画レイヤー (白オーバーレイ) ■
+        ctx.shadowBlur = 0;
+        ctx.globalCompositeOperation = 'source-over'; // 標準に戻す
+        ctx.globalAlpha = 1.0;
+
+        charData.forEach(d => {
+            // 文字本体（白）
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillText(d.char, d.x, d.y);
+            
+            // わずかに色味を足す（Python版の logic再現）
+            // ctx.fillStyle = d.color;
+            // ctx.globalAlpha = 0.3;
+            // ctx.fillText(d.char, d.x, d.y);
+        });
+        
+        ctx.globalAlpha = 1.0;
+    }
+
+    // --- イベントリスナー設定 ---
+    const inputs = [textInput, presetSelect, customColorInput, shakePatternSelect, 
+                   shakeRange, glowRange, spacingRange, fontSizeRange, transparentCheck];
+    
+    inputs.forEach(el => {
+        el.addEventListener('input', (e) => {
+            // 数値表示更新
+            if(valMap[e.target.id]) {
+                document.getElementById(valMap[e.target.id]).textContent = e.target.value;
+            }
+            // カスタムカラー表示切り替え
+            if(e.target.id === 'presetSelect') {
+                customColorGroup.style.display = (e.target.value === 'custom') ? 'block' : 'none';
+            }
+            // 再描画
+            draw();
+        });
+    });
+
+    // ダウンロード
+    downloadBtn.addEventListener('click', () => {
+        const link = document.createElement('a');
+        link.download = 'neon_text.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    });
+
+    // 初期化: フォント読み込み完了を待ってから描画
+    document.fonts.ready.then(() => {
+        draw();
+    });
+
+</script>
+</body>
+</html>
