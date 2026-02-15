@@ -183,8 +183,8 @@ html_code = """
 
         <div class="group-title">Effects</div>
         <div class="control-item">
-            <label>Shake Pattern</label>
-            <select id="揺れ設定">
+            <label>揺れ設定</label>
+            <select id="shakePattern">
                 <option value="random">Random Noise</option>
                 <option value="sin">Sine Wave</option>
                 <option value="fixed">Fixed Alternating</option>
