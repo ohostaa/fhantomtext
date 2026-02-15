@@ -195,8 +195,8 @@ html_code = """
             <input type="range" id="shake" min="0" max="50" value="2" step="0.5">
         </div>
         <div class="control-item">
-            <label>発光強度 <span id="v_gl" class="val-display">0.3</span></label>
-            <input type="range" id="glow" min="0" max="1.5" value="0.3" step="0.05">
+            <label>発光強度 <span id="v_gl" class="val-display">0.8</span></label>
+            <input type="range" id="glow" min="0" max="1.5" value="0.8" step="0.05">
         </div>
         
         <div style="height:100px;"></div>
