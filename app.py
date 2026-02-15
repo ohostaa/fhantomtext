@@ -1,5 +1,5 @@
 import streamlit as st
-import main
+from text2 import main
 from io import BytesIO
 
 st.set_page_config(page_title="Neon Text Generator", layout="wide")
