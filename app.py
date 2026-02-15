@@ -142,8 +142,6 @@ html_code = """
         max-height: 100%; 
         object-fit: contain;
         box-shadow: 0 0 30px rgba(0,0,0,0.8);
-        
-        /* 枠線を変更: 青色の破線で視認性UP */
         border: 2px dashed #4896A0; 
         box-sizing: border-box;
     }
