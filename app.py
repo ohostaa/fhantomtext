@@ -1,27 +1,22 @@
 import streamlit as st
 import streamlit.components.v1 as components
 
-# ページ設定
 st.set_page_config(page_title="Neon Text Generator", layout="wide", initial_sidebar_state="collapsed")
 
-# ■ CSSハック: 全画面固定・スクロール禁止設定 ■
 st.markdown("""
 <style>
-    /* ヘッダー・フッター・パディング全削除 */
     header, footer { visibility: hidden; display: none; }
     
     .block-container {
         padding: 0 !important;
         max-width: 100% !important;
     }
-    
-    /* アプリ全体のスクロール禁止 */
+
     body {
         overflow: hidden !important;
         margin: 0 !important;
     }
     
-    /* Streamlitのメインコンテナのスクロール禁止 */
     .stApp {
         overflow: hidden !important;
     }
@@ -39,7 +34,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# HTML/JSコード（内容は変更なし）
 html_code = """
 <!DOCTYPE html>
 <html lang="ja">
@@ -59,7 +53,7 @@ html_code = """
         font-family: "Helvetica Neue", Arial, sans-serif;
         margin: 0; padding: 0;
         width: 100vw; height: 100vh;
-        overflow: hidden; /* ブラウザ自体のスクロール禁止 */
+        overflow: hidden; 
     }
     
     .app-container {
@@ -68,21 +62,19 @@ html_code = """
         height: 100%;
     }
 
-    /* 左: 設定パネル (縦スクロール許可) */
     .sidebar {
         width: 340px;
         min-width: 340px;
         background: var(--panel-bg);
         border-right: 1px solid var(--border-color);
         padding: 20px;
-        overflow-y: auto; /* ここだけスクロール可能 */
+        overflow-y: auto; 
         height: 100%; 
         box-sizing: border-box;
         display: flex; flex-direction: column; gap: 20px;
         z-index: 10;
     }
     
-    /* スクロールバー装飾 */
     .sidebar::-webkit-scrollbar { width: 8px; }
     .sidebar::-webkit-scrollbar-track { background: #1e1e1e; }
     .sidebar::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
@@ -111,11 +103,9 @@ html_code = """
     textarea { resize: vertical; min-height: 100px; }
     input[type="range"] { width: 100%; cursor: pointer; margin-top: 5px; }
 
-    /* 右: プレビューエリア (完全固定) */
     .main-area {
         flex: 1;
         display: flex;
-        flex-direction: column;
         background: #000;
         position: relative;
         height: 100%;
@@ -145,27 +135,6 @@ html_code = """
         border: 1px solid #333;
     }
 
-    .toolbar {
-        height: 60px;
-        background: #111;
-        border-top: 1px solid #333;
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        padding: 0 20px;
-        box-sizing: border-box;
-    }
-
-    button.download-btn {
-        background: var(--accent-color); color: white; border: none;
-        padding: 10px 24px; border-radius: 6px; font-weight: bold;
-        cursor: pointer; transition: all 0.2s; font-size: 0.95em;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-        display: flex; align-items: center; gap: 8px;
-    }
-    button.download-btn:hover { background: #5abac6; transform: translateY(-1px); }
-    button.download-btn:active { transform: translateY(1px); }
-
     #custom-color-group { display: none; margin-top: 10px; }
     input[type="color"] { width: 100%; height: 40px; border: none; padding: 0; cursor: pointer; border-radius: 4px; }
 
@@ -180,13 +149,13 @@ html_code = """
         
         <div class="group-title">Content</div>
         <div class="control-item">
-            <label>Text</label>
-            <textarea id="textInput" spellcheck="false">サンプル\\nテキスト</textarea>
+            <label>テキスト</label>
+            <textarea id="textInput" spellcheck="false">サンプルテキスト</textarea>
         </div>
         
         <div class="group-title">Style & Color</div>
         <div class="control-item">
-            <label>Color Preset</label>
+            <label>色設定</label>
             <select id="preset">
                 <option value="default">Default (Blue/Purple)</option>
                 <option value="fire">Fire (Red/Yellow)</option>
@@ -199,34 +168,34 @@ html_code = """
         </div>
         <div class="control-item" style="display:flex; align-items:center; gap:10px; background:#252525; padding:10px; border-radius:6px;">
             <input type="checkbox" id="transparent" style="width:20px; height:20px; margin:0; cursor:pointer;">
-            <label style="margin:0; cursor:pointer; color:#fff;" for="transparent">Transparent Background</label>
+            <label style="margin:0; cursor:pointer; color:#fff;" for="transparent">背景透過</label>
         </div>
 
         <div class="group-title">Typography</div>
         <div class="control-item">
-            <label>Font Size <span id="v_fs" class="val-display">120</span></label>
+            <label>フォントサイズ <span id="v_fs" class="val-display">120</span></label>
             <input type="range" id="fontSize" min="20" max="400" value="120">
         </div>
         <div class="control-item">
-            <label>Letter Spacing <span id="v_sp" class="val-display">3</span></label>
+            <label>文字間隔 <span id="v_sp" class="val-display">3</span></label>
             <input type="range" id="spacing" min="-10" max="50" value="3">
         </div>
 
-        <div class="group-title">Animation Effects</div>
+        <div class="group-title">Effects</div>
         <div class="control-item">
             <label>Shake Pattern</label>
-            <select id="shakePattern">
+            <select id="揺れ設定">
                 <option value="random">Random Noise</option>
                 <option value="sin">Sine Wave</option>
                 <option value="fixed">Fixed Alternating</option>
             </select>
         </div>
         <div class="control-item">
-            <label>Shake Intensity <span id="v_sh" class="val-display">2.0</span></label>
+            <label>揺れ強度 <span id="v_sh" class="val-display">2.0</span></label>
             <input type="range" id="shake" min="0" max="50" value="2" step="0.5">
         </div>
         <div class="control-item">
-            <label>Neon Glow <span id="v_gl" class="val-display">0.3</span></label>
+            <label>発光強度 <span id="v_gl" class="val-display">0.3</span></label>
             <input type="range" id="glow" min="0" max="1.5" value="0.3" step="0.05">
         </div>
         
@@ -236,8 +205,6 @@ html_code = """
     <div class="main-area">
         <div class="canvas-container">
             <canvas id="mainCanvas"></canvas>
-        </div>
-        <div class="toolbar">
         </div>
     </div>
 </div>
@@ -258,7 +225,6 @@ html_code = """
         shake: document.getElementById('shake'),
         pattern: document.getElementById('shakePattern'),
         glow: document.getElementById('glow'),
-        dl: document.getElementById('downloadBtn'),
         customGrp: document.getElementById('custom-color-group')
     };
 
@@ -381,7 +347,7 @@ html_code = """
     }
 
     Object.keys(els).forEach(key => {
-        if (!els[key] || key === 'customGrp' || key === 'dl') return;
+        if (!els[key] || key === 'customGrp') return;
         els[key].addEventListener('input', (e) => {
             if (valDisplays[key]) valDisplays[key].textContent = e.target.value;
             if (key === 'preset') els.customGrp.style.display = (e.target.value === 'custom') ? 'block' : 'none';
@@ -389,14 +355,6 @@ html_code = """
         });
     });
 
-    els.dl.addEventListener('click', () => {
-        const link = document.createElement('a');
-        link.download = 'neon_text.png';
-        link.href = cvs.toDataURL('image/png');
-        link.click();
-    });
-
-    // リサイズ対応
     window.addEventListener('resize', draw);
     
     document.fonts.ready.then(draw);
