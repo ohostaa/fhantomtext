@@ -278,19 +278,6 @@ html_code = """
         'ice': ["#0099FF", "#00CCFF", "#FFFFFF"]
     };
 
-    function hexToRgb(hex) {
-        const bigint = parseInt(hex.slice(1), 16);
-        return { r: (bigint >> 16) & 255, g: (bigint >> 8) & 255, b: bigint & 255 };
-    }
-
-    function interpolate(c1, c2, f) {
-        return {
-            r: Math.round(c1.r + (c2.r - c1.r) * f),
-            g: Math.round(c1.g + (c2.g - c1.g) * f),
-            b: Math.round(c1.b + (c2.b - c1.b) * f)
-        };
-    }
-
     function draw() {
         cvs.width = WIDTH;
         cvs.height = HEIGHT;
@@ -317,12 +304,12 @@ html_code = """
         ctx.lineJoin = 'round';
         ctx.lineCap = 'round';
 
-        let colors;
+        let palette;
         if (preset === 'custom') {
-            const c = hexToRgb(els.customC.value);
-            colors = [c, c, c];
+            const c = els.customC.value;
+            palette = [c, c, c];
         } else {
-            colors = GRADIENTS[preset].map(hexToRgb);
+            palette = GRADIENTS[preset];
         }
         
         const lines = text.split('\\\\\\\\n'); 
@@ -331,10 +318,6 @@ html_code = """
         const totalHeight = lines.length * lineHeight;
         const startY = (HEIGHT - totalHeight) / 2 + lineHeight / 2;
         
-        let totalChars = 0;
-        lines.forEach(l => totalChars += l.length);
-        if (totalChars === 0) totalChars = 1;
-
         let charCounter = 0;
         ctx.globalCompositeOperation = isTrans ? 'source-over' : 'lighter';
 
@@ -347,12 +330,7 @@ html_code = """
             const baseY = startY + (lineIdx * lineHeight);
 
             for (let char of line) {
-                let progress = charCounter / Math.max(totalChars - 1, 1);
-                let col = (progress < 0.5) 
-                    ? interpolate(colors[0], colors[1], progress * 2)
-                    : interpolate(colors[1], colors[2], (progress - 0.5) * 2);
-                const colorStr = `rgb(${col.r},${col.g},${col.b})`;
-
+                // 揺れ計算
                 let yOffset = 0;
                 if (shakeVal > 0) {
                     if (pattern === 'fixed') {
@@ -367,26 +345,51 @@ html_code = """
                     }
                 }
 
-                const passes = [[60, 0.4], [40, 0.5], [20, 0.8], [10, 1.0]];
-                passes.forEach(([blur, alphaMul]) => {
-                    ctx.shadowBlur = blur;
-                    ctx.shadowColor = colorStr;
-                    ctx.fillStyle = colorStr;
-                    
-                    ctx.strokeStyle = colorStr;
-                    ctx.lineWidth = blur * 0.6; 
+                // 文字ごとの縦方向グラデーションを作成
+                // 文字の上端(top)から下端(bottom)にかけてグラデーション
+                // 「下からグラデーション」なので、0.0を下側の色、1.0を上側の色とするか、
+                // あるいは下(yMax)から上(yMin)へ座標指定する。
+                // ここでは Canvasの座標系(上が0)にあわせて、下(baseY + fontSize/2) から 上(baseY - fontSize/2) へ定義。
+                const topY = baseY + yOffset - fontSize * 0.55;
+                const bottomY = baseY + yOffset + fontSize * 0.55;
+                
+                // 下から上へのグラデーションを作成
+                const grad = ctx.createLinearGradient(0, bottomY, 0, topY);
+                
+                // パレット色を割り当て (配列の先頭が「下」に来るように0.0に設定)
+                if (palette.length === 1) {
+                    grad.addColorStop(0, palette[0]);
+                    grad.addColorStop(1, palette[0]);
+                } else {
+                    palette.forEach((color, i) => {
+                        grad.addColorStop(i / (palette.length - 1), color);
+                    });
+                }
 
-                    const combinedAlpha = alphaMul * glowVal;
-                    ctx.globalAlpha = combinedAlpha * 0.4;
+                // 発光 (Stroke重ねがけ)
+                // shadowBlurは単色制限があるため、ここではStroke自体のグラデーションで発光を表現する
+                const passes = [[40, 0.15], [20, 0.2], [10, 0.4]]; // 太さ, 透明度
+                
+                // 1. 強い発光層 (太いストローク)
+                passes.forEach(([width, alpha]) => {
+                    ctx.strokeStyle = grad;
+                    ctx.lineWidth = width;
+                    ctx.globalAlpha = alpha * glowVal;
                     ctx.strokeText(char, currentX, baseY + yOffset);
-
-                    ctx.globalAlpha = combinedAlpha;
-                    ctx.fillText(char, currentX, baseY + yOffset);
                 });
 
-                ctx.shadowBlur = 0;
-                ctx.globalAlpha = 1.0;
+                // 2. 文字本体 (塗りつぶし)
+                // ここもグラデーションで塗ることで「文字色自体がグラデーション」になる
+                ctx.fillStyle = grad;
+                ctx.globalAlpha = 1.0; 
+                
+                // 少し白を混ぜて芯を明るく見せるための重ね塗り
+                // まずグラデーションで塗る
+                ctx.fillText(char, currentX, baseY + yOffset);
+                
+                // さらに、うっすら白を重ねて「発光体っぽさ」を出す (オプション)
                 ctx.fillStyle = "#FFFFFF";
+                ctx.globalAlpha = 0.3; // 白の不透明度
                 ctx.fillText(char, currentX, baseY + yOffset);
 
                 currentX += ctx.measureText(char).width + spacing;
