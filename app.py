@@ -315,4 +315,99 @@ html_code = """
         ctx.textBaseline = 'middle';
 
         let colors;
-        if (preset === 'custom
+        if (preset === 'custom') {
+            const c = hexToRgb(els.customC.value);
+            colors = [c, c, c];
+        } else {
+            colors = GRADIENTS[preset].map(hexToRgb);
+        }
+
+        const lines = text.split('\\\\n');
+        const lineHeight = fontSize * 1.15;
+        const totalHeight = lines.length * lineHeight;
+        const startY = (HEIGHT - totalHeight) / 2 + lineHeight / 2;
+        
+        let totalChars = 0;
+        lines.forEach(l => totalChars += l.length);
+        if (totalChars === 0) totalChars = 1;
+
+        let charCounter = 0;
+        ctx.globalCompositeOperation = isTrans ? 'source-over' : 'lighter';
+
+        lines.forEach((line, lineIdx) => {
+            let lineWidth = 0;
+            for (let char of line) lineWidth += ctx.measureText(char).width + spacing;
+            if (line.length > 0) lineWidth -= spacing;
+            
+            let currentX = (WIDTH - lineWidth) / 2;
+            const baseY = startY + (lineIdx * lineHeight);
+
+            for (let char of line) {
+                let progress = charCounter / Math.max(totalChars - 1, 1);
+                let col = (progress < 0.5) 
+                    ? interpolate(colors[0], colors[1], progress * 2)
+                    : interpolate(colors[1], colors[2], (progress - 0.5) * 2);
+                const colorStr = `rgb(${col.r},${col.g},${col.b})`;
+
+                let yOffset = 0;
+                if (shakeVal > 0) {
+                    if (pattern === 'fixed') {
+                        yOffset = (charCounter % 2 === 0 ? -1 : 1) * shakeVal;
+                    } else if (pattern === 'sin') {
+                        yOffset = Math.sin(charCounter * 0.8) * shakeVal;
+                    } else { 
+                        const seed = charCounter * 99.99;
+                        const rnd = Math.sin(seed); 
+                        const direction = (charCounter % 2 === 0) ? -1 : 1;
+                        yOffset = direction * (shakeVal * (0.8 + Math.abs(rnd))); 
+                    }
+                }
+
+                const passes = [[60, 0.4], [40, 0.5], [20, 0.8], [10, 1.0]];
+                passes.forEach(([blur, alphaMul]) => {
+                    ctx.shadowBlur = blur;
+                    ctx.shadowColor = colorStr;
+                    ctx.fillStyle = colorStr;
+                    ctx.globalAlpha = alphaMul * glowVal;
+                    ctx.fillText(char, currentX, baseY + yOffset);
+                });
+
+                ctx.shadowBlur = 0;
+                ctx.globalAlpha = 1.0;
+                ctx.fillStyle = "#FFFFFF";
+                ctx.fillText(char, currentX, baseY + yOffset);
+
+                currentX += ctx.measureText(char).width + spacing;
+                charCounter++;
+            }
+        });
+    }
+
+    Object.keys(els).forEach(key => {
+        if (!els[key] || key === 'customGrp' || key === 'dl') return;
+        els[key].addEventListener('input', (e) => {
+            if (valDisplays[key]) valDisplays[key].textContent = e.target.value;
+            if (key === 'preset') els.customGrp.style.display = (e.target.value === 'custom') ? 'block' : 'none';
+            draw();
+        });
+    });
+
+    els.dl.addEventListener('click', () => {
+        const link = document.createElement('a');
+        link.download = 'neon_text.png';
+        link.href = cvs.toDataURL('image/png');
+        link.click();
+    });
+
+    // リサイズ対応
+    window.addEventListener('resize', draw);
+    
+    document.fonts.ready.then(draw);
+    setTimeout(draw, 500); 
+
+</script>
+</body>
+</html>
+"""
+
+components.html(html_code, height=2000, scrolling=False)
