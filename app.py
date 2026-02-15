@@ -22,22 +22,41 @@ html_code = """
         font-family: "Helvetica Neue", Arial, sans-serif;
         margin: 0; padding: 0;
         height: 100vh;
-        overflow: hidden;
+        overflow: hidden; /* 全体スクロール禁止 */
     }
     
-    .app-container { display: flex; height: 100vh; }
+    .app-container {
+        display: flex;
+        width: 100vw;
+        height: 100vh;
+    }
 
-    /* サイドバー設定 */
+    /* --- 左側: 設定パネル (固定・内部スクロール) --- */
     .sidebar {
         width: 320px;
         min-width: 320px;
         background: var(--panel-bg);
         border-right: 1px solid var(--border-color);
         padding: 20px;
+        
+        /* ここが重要: 縦方向にスクロール可能にする */
         overflow-y: auto;
-        display: flex; flex-direction: column; gap: 20px;
+        height: 100vh; 
+        box-sizing: border-box;
+        
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        
+        /* スクロールバーのデザイン (Chrome/Safari) */
+        scrollbar-width: thin;
+        scrollbar-color: #555 #1e1e1e;
     }
     
+    .sidebar::-webkit-scrollbar { width: 8px; }
+    .sidebar::-webkit-scrollbar-track { background: #1e1e1e; }
+    .sidebar::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+
     .group-title {
         font-size: 0.85em; font-weight: bold; color: #888;
         border-bottom: 1px solid #444; padding-bottom: 5px;
@@ -59,10 +78,16 @@ html_code = """
     textarea { resize: vertical; min-height: 80px; }
     input[type="range"] { width: 100%; cursor: pointer; }
 
-    /* プレビューエリア */
+    /* --- 右側: プレビューエリア (固定) --- */
     .main-area {
-        flex: 1; display: flex; flex-direction: column;
-        background: #121212; padding: 20px; position: relative;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: #121212;
+        padding: 20px;
+        position: relative;
+        height: 100vh; /* 高さ固定 */
+        box-sizing: border-box;
     }
     
     .canvas-wrapper {
@@ -77,6 +102,7 @@ html_code = """
         display: flex; align-items: center; justify-content: center;
         overflow: hidden;
         box-shadow: inset 0 0 20px #000;
+        margin-bottom: 10px;
     }
 
     canvas {
@@ -84,7 +110,12 @@ html_code = """
         box-shadow: 0 0 10px rgba(0,0,0,0.5);
     }
 
-    .action-bar { padding-top: 20px; display: flex; justify-content: flex-end; }
+    .action-bar {
+        height: 50px;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+    }
 
     button.download-btn {
         background: var(--accent-color); color: white; border: none;
@@ -103,6 +134,7 @@ html_code = """
 <body>
 
 <div class="app-container">
+    <!-- 左: 設定パネル -->
     <div class="sidebar">
         
         <div class="group-title">Text & Font</div>
@@ -139,7 +171,6 @@ html_code = """
 
         <div class="group-title">Effects</div>
         
-        <!-- 追加した部分 -->
         <div class="control-item">
             <label>揺れパターン</label>
             <select id="shakePattern">
@@ -157,8 +188,12 @@ html_code = """
             <label>発光強度 (Glow) <span id="v_gl" class="val-display">0.3</span></label>
             <input type="range" id="glow" min="0" max="1.5" value="0.3" step="0.05">
         </div>
+        
+        <!-- 余白用（スクロール確認用） -->
+        <div style="height:50px;"></div>
     </div>
 
+    <!-- 右: プレビューエリア -->
     <div class="main-area">
         <div class="canvas-wrapper">
             <canvas id="mainCanvas"></canvas>
@@ -184,7 +219,7 @@ html_code = """
         customC: document.getElementById('customColor'),
         trans: document.getElementById('transparent'),
         shake: document.getElementById('shake'),
-        pattern: document.getElementById('shakePattern'), // 追加
+        pattern: document.getElementById('shakePattern'),
         glow: document.getElementById('glow'),
         dl: document.getElementById('downloadBtn'),
         customGrp: document.getElementById('custom-color-group')
@@ -224,7 +259,7 @@ html_code = """
         const fontSize = parseInt(els.fs.value);
         const spacing = parseInt(els.sp.value);
         const shakeVal = parseFloat(els.shake.value);
-        const pattern = els.pattern.value; // パターン取得
+        const pattern = els.pattern.value;
         const glowVal = parseFloat(els.glow.value);
         const isTrans = els.trans.checked;
         const preset = els.preset.value;
@@ -274,17 +309,13 @@ html_code = """
                     : interpolate(colors[1], colors[2], (progress - 0.5) * 2);
                 const colorStr = `rgb(${col.r},${col.g},${col.b})`;
 
-                // 揺れ計算ロジック
                 let yOffset = 0;
                 if (shakeVal > 0) {
                     if (pattern === 'fixed') {
-                        // 互い違い
                         yOffset = (charCounter % 2 === 0 ? -1 : 1) * shakeVal;
                     } else if (pattern === 'sin') {
-                        // サイン波
                         yOffset = Math.sin(charCounter * 0.8) * shakeVal;
                     } else { 
-                        // ランダム (擬似乱数)
                         const seed = charCounter * 99.99;
                         const rnd = Math.sin(seed); 
                         const direction = (charCounter % 2 === 0) ? -1 : 1;
@@ -292,7 +323,6 @@ html_code = """
                     }
                 }
 
-                // グロー
                 const passes = [[60, 0.4], [40, 0.5], [20, 0.8], [10, 1.0]];
                 passes.forEach(([blur, alphaMul]) => {
                     ctx.shadowBlur = blur;
@@ -302,7 +332,6 @@ html_code = """
                     ctx.fillText(char, currentX, baseY + yOffset);
                 });
 
-                // 本体
                 ctx.shadowBlur = 0;
                 ctx.globalAlpha = 1.0;
                 ctx.fillStyle = "#FFFFFF";
