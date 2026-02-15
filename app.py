@@ -191,7 +191,7 @@ html_code = """
         </div>
         <div class="control-item">
             <label>揺れ強度 <span id="v_sh" class="val-display">2.0</span></label>
-            <input type="range" id="shake" min="0" max="200" value="2" step="0.5">
+            <input type="range" id="shake" min="0" max="100" value="2" step="0.5">
         </div>
         <div class="control-item">
             <label>発光強度 <span id="v_gl" class="val-display">0.8</span></label>
