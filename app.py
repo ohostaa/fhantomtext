@@ -3,6 +3,7 @@ import streamlit.components.v1 as components
 
 st.set_page_config(page_title="Neon Text Generator", layout="wide", initial_sidebar_state="collapsed")
 
+# StreamlitのUIを隠してフルスクリーンiframe用のスタイルを適用
 st.markdown("""
 <style>
     header, footer { visibility: hidden; display: none; }
@@ -38,6 +39,8 @@ html_code = """
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
+<!-- 重要: ビューポート設定を追加してスマホでの実寸表示を有効化 -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <style>
     :root {
         --bg-color: #0e1117;
@@ -59,8 +62,11 @@ html_code = """
         display: flex;
         width: 100%;
         height: 100%;
+        /* デフォルトはデスクトップ用の横並び */
+        flex-direction: row; 
     }
 
+    /* --- PC用サイドバー設定 --- */
     .sidebar {
         width: 340px;
         min-width: 340px;
@@ -72,6 +78,9 @@ html_code = """
         box-sizing: border-box;
         display: flex; flex-direction: column; gap: 20px;
         z-index: 10;
+        /* スクロールバー装飾 */
+        scrollbar-width: thin;
+        scrollbar-color: #555 #1e1e1e;
     }
     
     .sidebar::-webkit-scrollbar { width: 8px; }
@@ -99,7 +108,12 @@ html_code = """
         color: white; padding: 10px; border-radius: 6px; box-sizing: border-box; font-size: 14px;
         font-family: inherit;
     }
-    textarea { resize: vertical; min-height: 100px; }
+    /* スマホでの入力ズーム防止のためにフォントサイズ調整 */
+    @media screen and (max-width: 768px) {
+        input[type="text"], textarea, select { font-size: 16px; }
+    }
+
+    textarea { resize: vertical; min-height: 80px; }
     input[type="range"] { width: 100%; cursor: pointer; margin-top: 5px; }
 
     .main-area {
@@ -124,18 +138,51 @@ html_code = """
         background-size: 24px 24px;
         overflow: hidden;
         position: relative;
+        padding: 10px; /* スマホで端が見切れないようにパディング */
+        box-sizing: border-box;
     }
 
     canvas {
-        max-width: 90%; 
-        max-height: 90%; 
+        max-width: 100%; 
+        max-height: 100%; 
         object-fit: contain;
-        box-shadow: 0 0 30px rgba(0,0,0,0.8);
+        box-shadow: 0 0 20px rgba(0,0,0,0.8);
         border: 1px solid #333;
     }
 
     #custom-color-group { display: none; margin-top: 10px; }
     input[type="color"] { width: 100%; height: 40px; border: none; padding: 0; cursor: pointer; border-radius: 4px; }
+
+    /* --- メディアクエリ: スマホ対応 (幅768px以下) --- */
+    @media screen and (max-width: 768px) {
+        .app-container {
+            /* 縦並びの逆順（プレビューを上、操作パネルを下にするため） */
+            flex-direction: column-reverse; 
+        }
+
+        .sidebar {
+            width: 100%;      /* 横幅いっぱい */
+            min-width: 0;     /* 固定幅解除 */
+            height: 60%;      /* 画面下半分(60%)を操作エリアに */
+            border-right: none;
+            border-top: 1px solid var(--border-color);
+            padding: 15px;
+            /* スクロールしやすくする */
+            -webkit-overflow-scrolling: touch; 
+        }
+
+        .main-area {
+            width: 100%;
+            height: 40%;      /* 画面上半分(40%)をプレビューエリアに */
+            flex: none;       /* サイズ固定 */
+        }
+        
+        /* タイトルサイズ調整 */
+        h2 { font-size: 1.0em !important; }
+        
+        /* キャンバス背景のグリッドを細かく */
+        .canvas-container { background-size: 16px 16px; }
+    }
 
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@800&display=swap" rel="stylesheet">
@@ -284,7 +331,11 @@ html_code = """
             colors = GRADIENTS[preset].map(hexToRgb);
         }
 
-        const lines = text.split('\\\\n');
+        // \\nエスケープの処理を修正 (Python文字列内でのエスケープを考慮)
+        // Python側でダブルスラッシュが入っているため、JSでは split('\\\\n') で改行検知
+        // あるいはHTML文字列リテラル内なので、シンプルに '\\n' で来る可能性が高い
+        const lines = text.split('\\n'); 
+        
         const lineHeight = fontSize * 1.15;
         const totalHeight = lines.length * lineHeight;
         const startY = (HEIGHT - totalHeight) / 2 + lineHeight / 2;
