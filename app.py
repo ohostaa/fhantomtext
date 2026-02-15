@@ -21,7 +21,6 @@ st.markdown("""
         overflow: hidden !important;
     }
 
-    /* iframeを画面いっぱいに広げる */
     iframe {
         position: fixed;
         top: 0;
@@ -150,7 +149,7 @@ html_code = """
         <div class="group-title">Content</div>
         <div class="control-item">
             <label>テキスト</label>
-            <textarea id="textInput" spellcheck="false">サンプルテキスト</textarea>
+            <textarea id="textInput" spellcheck="false">これがこれからの世界だよ</textarea>
         </div>
         
         <div class="group-title">Style & Color</div>
@@ -173,8 +172,8 @@ html_code = """
 
         <div class="group-title">Typography</div>
         <div class="control-item">
-            <label>フォントサイズ <span id="v_fs" class="val-display">120</span></label>
-            <input type="range" id="fontSize" min="20" max="400" value="120">
+            <label>フォントサイズ <span id="v_fs" class="val-display">60</span></label>
+            <input type="range" id="fontSize" min="10" max="400" value="60">
         </div>
         <div class="control-item">
             <label>文字間隔 <span id="v_sp" class="val-display">3</span></label>
@@ -192,7 +191,7 @@ html_code = """
         </div>
         <div class="control-item">
             <label>揺れ強度 <span id="v_sh" class="val-display">2.0</span></label>
-            <input type="range" id="shake" min="0" max="50" value="2" step="0.5">
+            <input type="range" id="shake" min="0" max="200" value="2" step="0.5">
         </div>
         <div class="control-item">
             <label>発光強度 <span id="v_gl" class="val-display">0.8</span></label>
