@@ -237,6 +237,8 @@ html_code = """
         <div class="canvas-container">
             <canvas id="mainCanvas"></canvas>
         </div>
+        <div class="toolbar">
+        </div>
     </div>
 </div>
 
