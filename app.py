@@ -185,9 +185,9 @@ html_code = """
         <div class="control-item">
             <label>揺れ設定</label>
             <select id="shakePattern">
-                <option value="random">Random Noise</option>
+                <option value="random">ランダム</option>
+                <option value="fixed">ジグザグ</option>
                 <option value="sin">Sine Wave</option>
-                <option value="fixed">Fixed Alternating</option>
             </select>
         </div>
         <div class="control-item">
