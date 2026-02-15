@@ -1,5 +1,5 @@
 import streamlit as st
-from main import text2
+import text
 from io import BytesIO
 
 st.set_page_config(page_title="Neon Text Generator", layout="wide")
@@ -32,7 +32,7 @@ if generate_btn:
     with st.spinner("生成中..."):
         try:
             # text2.pyの関数を呼び出し
-            img = text2.generate_neon_image(
+            img = text.generate_neon_image(
                 text=text,
                 gradient_preset=preset if preset != "custom" else "default",
                 custom_color=custom_color,
