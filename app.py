@@ -392,6 +392,31 @@ html_code = """
         });
     });
 
+    cvs.addEventListener('click', async () => {
+        if (window.innerWidth > 768) return;
+        
+        cvs.toBlob(async (blob) => {
+            if (!blob) return;
+            const fileName = 'neon_text.png';
+            const file = new File([blob], fileName, { type: 'image/png' });
+            
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({ files: [file], title: 'Neon Text' });
+                } catch (err) {}
+            } else {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+        }, 'image/png');
+    });
+
     window.addEventListener('resize', draw);
     
     document.fonts.ready.then(draw);
