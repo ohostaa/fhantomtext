@@ -6,7 +6,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 # デフォルト設定
-DEFAULT_FONT_PATH = "ShipporiMinchoB1-ExtraBold.ttf" # 同じフォルダに置く
+DEFAULT_FONT_PATH = "ShipporiMincho-ExtraBold.ttf" # 同じフォルダに置く
 BASE_FONT_SIZE = 60
 BG_COLOR = (0, 0, 0)
 OFFSET_BASE = 2
