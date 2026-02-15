@@ -144,7 +144,7 @@ html_code = """
 
 <div class="app-container">
     <div class="sidebar">
-        <h2 style="margin:0 0 10px 0; font-size:1.2em; color:#fff;">ファンパレ風文字画像 Generator</h2>
+        <h2 style="margin:0 0 10px 0; font-size:1.2em; color:#fff;">ファンパレ風文字画像作成ツール</h2>
         
         <div class="group-title">Content</div>
         <div class="control-item">
