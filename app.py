@@ -1,7 +1,33 @@
 import streamlit as st
 import streamlit.components.v1 as components
 
-st.set_page_config(page_title="Neon Text Generator", layout="wide")
+# ページ設定 (layout="wide" は必須)
+st.set_page_config(page_title="Neon Text Generator", layout="wide", initial_sidebar_state="collapsed")
+
+# ■ CSSハック: Streamlitの標準UIを消し去り、全画面を使う設定 ■
+st.markdown("""
+<style>
+    /* Streamlitのヘッダー、フッター、パディングを削除 */
+    header {visibility: hidden;}
+    footer {visibility: hidden;}
+    .block-container {
+        padding-top: 0rem !important;
+        padding-bottom: 0rem !important;
+        padding-left: 0rem !important;
+        padding-right: 0rem !important;
+        max-width: 100% !important;
+    }
+    /* iframeを画面いっぱいに広げる */
+    iframe {
+        height: 100vh !important;
+        width: 100vw !important;
+    }
+    /* スクロールバーを隠す（アプリ内で制御するため） */
+    body {
+        overflow: hidden;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 html_code = """
 <!DOCTYPE html>
@@ -21,38 +47,36 @@ html_code = """
         color: var(--text-color); 
         font-family: "Helvetica Neue", Arial, sans-serif;
         margin: 0; padding: 0;
-        height: 100vh;
-        overflow: hidden; /* 全体スクロール禁止 */
+        width: 100vw; height: 100vh;
+        overflow: hidden; /* ブラウザ自体のスクロール禁止 */
     }
     
     .app-container {
         display: flex;
-        width: 100vw;
-        height: 100vh;
+        width: 100%;
+        height: 100%;
     }
 
-    /* --- 左側: 設定パネル (固定・内部スクロール) --- */
+    /* --- 左側: 設定パネル (ここだけスクロールさせる) --- */
     .sidebar {
-        width: 320px;
-        min-width: 320px;
+        width: 340px;
+        min-width: 340px;
         background: var(--panel-bg);
         border-right: 1px solid var(--border-color);
         padding: 20px;
         
-        /* ここが重要: 縦方向にスクロール可能にする */
+        /* 縦スクロール有効化 */
         overflow-y: auto;
-        height: 100vh; 
+        height: 100%; 
         box-sizing: border-box;
         
         display: flex;
         flex-direction: column;
         gap: 20px;
-        
-        /* スクロールバーのデザイン (Chrome/Safari) */
-        scrollbar-width: thin;
-        scrollbar-color: #555 #1e1e1e;
+        z-index: 10;
     }
     
+    /* スクロールバーのデザイン */
     .sidebar::-webkit-scrollbar { width: 8px; }
     .sidebar::-webkit-scrollbar-track { background: #1e1e1e; }
     .sidebar::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
@@ -61,7 +85,9 @@ html_code = """
         font-size: 0.85em; font-weight: bold; color: #888;
         border-bottom: 1px solid #444; padding-bottom: 5px;
         margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;
+        margin-top: 10px;
     }
+    .group-title:first-child { margin-top: 0; }
 
     .control-item { margin-bottom: 15px; }
     
@@ -73,60 +99,69 @@ html_code = """
 
     input[type="text"], textarea, select {
         width: 100%; background: #2b2b2b; border: 1px solid #444;
-        color: white; padding: 8px; border-radius: 4px; box-sizing: border-box; font-size: 14px;
+        color: white; padding: 10px; border-radius: 6px; box-sizing: border-box; font-size: 14px;
+        font-family: inherit;
     }
-    textarea { resize: vertical; min-height: 80px; }
-    input[type="range"] { width: 100%; cursor: pointer; }
+    textarea { resize: vertical; min-height: 100px; }
+    input[type="range"] { width: 100%; cursor: pointer; margin-top: 5px; }
 
-    /* --- 右側: プレビューエリア (固定) --- */
+    /* --- 右側: プレビューエリア (完全固定) --- */
     .main-area {
         flex: 1;
         display: flex;
         flex-direction: column;
-        background: #121212;
-        padding: 20px;
+        background: #000; /* 背景を黒で統一 */
         position: relative;
-        height: 100vh; /* 高さ固定 */
-        box-sizing: border-box;
+        height: 100%;
+        overflow: hidden; /* はみ出し禁止 */
     }
     
-    .canvas-wrapper {
+    .canvas-container {
         flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         background-image: 
-            linear-gradient(45deg, #222 25%, transparent 25%), 
-            linear-gradient(-45deg, #222 25%, transparent 25%), 
-            linear-gradient(45deg, transparent 75%, #222 75%), 
-            linear-gradient(-45deg, transparent 75%, #222 75%);
-        background-size: 20px 20px;
-        border-radius: 8px; border: 1px solid #333;
-        display: flex; align-items: center; justify-content: center;
+            linear-gradient(45deg, #1a1a1a 25%, transparent 25%), 
+            linear-gradient(-45deg, #1a1a1a 25%, transparent 25%), 
+            linear-gradient(45deg, transparent 75%, #1a1a1a 75%), 
+            linear-gradient(-45deg, transparent 75%, #1a1a1a 75%);
+        background-size: 24px 24px;
         overflow: hidden;
-        box-shadow: inset 0 0 20px #000;
-        margin-bottom: 10px;
+        position: relative;
     }
 
     canvas {
-        max-width: 95%; max-height: 95%; object-fit: contain;
-        box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        max-width: 90%; 
+        max-height: 90%; 
+        object-fit: contain;
+        box-shadow: 0 0 30px rgba(0,0,0,0.8);
+        border: 1px solid #333;
     }
 
-    .action-bar {
-        height: 50px;
+    .toolbar {
+        height: 60px;
+        background: #111;
+        border-top: 1px solid #333;
         display: flex;
-        justify-content: flex-end;
         align-items: center;
+        justify-content: flex-end;
+        padding: 0 20px;
+        box-sizing: border-box;
     }
 
     button.download-btn {
         background: var(--accent-color); color: white; border: none;
-        padding: 12px 30px; border-radius: 6px; font-weight: bold;
-        cursor: pointer; transition: background 0.2s; font-size: 1em;
+        padding: 10px 24px; border-radius: 6px; font-weight: bold;
+        cursor: pointer; transition: all 0.2s; font-size: 0.95em;
         box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        display: flex; align-items: center; gap: 8px;
     }
-    button.download-btn:hover { background: #5abac6; }
+    button.download-btn:hover { background: #5abac6; transform: translateY(-1px); }
+    button.download-btn:active { transform: translateY(1px); }
 
     #custom-color-group { display: none; margin-top: 10px; }
-    input[type="color"] { width: 100%; height: 40px; border: none; padding: 0; cursor: pointer; }
+    input[type="color"] { width: 100%; height: 40px; border: none; padding: 0; cursor: pointer; border-radius: 4px; }
 
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@800&display=swap" rel="stylesheet">
@@ -136,24 +171,17 @@ html_code = """
 <div class="app-container">
     <!-- 左: 設定パネル -->
     <div class="sidebar">
+        <h2 style="margin:0 0 10px 0; font-size:1.2em; color:#fff;">Neon Generator</h2>
         
-        <div class="group-title">Text & Font</div>
+        <div class="group-title">Content</div>
         <div class="control-item">
-            <label>テキスト内容</label>
-            <textarea id="textInput">サンプル\\nテキスト</textarea>
+            <label>Text</label>
+            <textarea id="textInput" spellcheck="false">サンプル\nテキスト</textarea>
         </div>
+        
+        <div class="group-title">Style & Color</div>
         <div class="control-item">
-            <label>フォントサイズ <span id="v_fs" class="val-display">100</span></label>
-            <input type="range" id="fontSize" min="20" max="400" value="100">
-        </div>
-        <div class="control-item">
-            <label>文字間隔 <span id="v_sp" class="val-display">3</span></label>
-            <input type="range" id="spacing" min="-10" max="50" value="3">
-        </div>
-
-        <div class="group-title">Color & Style</div>
-        <div class="control-item">
-            <label>カラープリセット</label>
+            <label>Color Preset</label>
             <select id="preset">
                 <option value="default">Default (Blue/Purple)</option>
                 <option value="fire">Fire (Red/Yellow)</option>
@@ -164,42 +192,51 @@ html_code = """
                 <input type="color" id="customColor" value="#ffffff">
             </div>
         </div>
-        <div class="control-item" style="display:flex; align-items:center; gap:10px;">
-            <input type="checkbox" id="transparent" style="width:auto;">
-            <label style="margin:0; cursor:pointer;" for="transparent">背景を透過する</label>
+        <div class="control-item" style="display:flex; align-items:center; gap:10px; background:#252525; padding:10px; border-radius:6px;">
+            <input type="checkbox" id="transparent" style="width:20px; height:20px; margin:0; cursor:pointer;">
+            <label style="margin:0; cursor:pointer; color:#fff;" for="transparent">Transparent Background</label>
         </div>
 
-        <div class="group-title">Effects</div>
-        
+        <div class="group-title">Typography</div>
         <div class="control-item">
-            <label>揺れパターン</label>
+            <label>Font Size <span id="v_fs" class="val-display">120</span></label>
+            <input type="range" id="fontSize" min="20" max="400" value="120">
+        </div>
+        <div class="control-item">
+            <label>Letter Spacing <span id="v_sp" class="val-display">3</span></label>
+            <input type="range" id="spacing" min="-10" max="50" value="3">
+        </div>
+
+        <div class="group-title">Animation Effects</div>
+        <div class="control-item">
+            <label>Shake Pattern</label>
             <select id="shakePattern">
-                <option value="random">Random (ランダム)</option>
-                <option value="sin">Sine Wave (波)</option>
-                <option value="fixed">Fixed (互い違い)</option>
+                <option value="random">Random Noise</option>
+                <option value="sin">Sine Wave</option>
+                <option value="fixed">Fixed Alternating</option>
             </select>
         </div>
-
         <div class="control-item">
-            <label>揺れ幅 (Shake) <span id="v_sh" class="val-display">2.0</span></label>
+            <label>Shake Intensity <span id="v_sh" class="val-display">2.0</span></label>
             <input type="range" id="shake" min="0" max="50" value="2" step="0.5">
         </div>
         <div class="control-item">
-            <label>発光強度 (Glow) <span id="v_gl" class="val-display">0.3</span></label>
+            <label>Neon Glow <span id="v_gl" class="val-display">0.3</span></label>
             <input type="range" id="glow" min="0" max="1.5" value="0.3" step="0.05">
         </div>
         
-        <!-- 余白用（スクロール確認用） -->
-        <div style="height:50px;"></div>
+        <div style="height:100px;"></div> <!-- 下部余白 -->
     </div>
 
     <!-- 右: プレビューエリア -->
     <div class="main-area">
-        <div class="canvas-wrapper">
+        <div class="canvas-container">
             <canvas id="mainCanvas"></canvas>
         </div>
-        <div class="action-bar">
-            <button id="downloadBtn" class="download-btn">画像を保存 (PNG)</button>
+        <div class="toolbar">
+            <button id="downloadBtn" class="download-btn">
+                <span>Download PNG</span>
+            </button>
         </div>
     </div>
 </div>
@@ -210,7 +247,6 @@ html_code = """
     const WIDTH = 1920;
     const HEIGHT = 1080;
     
-    // 要素取得
     const els = {
         text: document.getElementById('textInput'),
         fs: document.getElementById('fontSize'),
@@ -359,6 +395,9 @@ html_code = """
         link.click();
     });
 
+    // リサイズ対応
+    window.addEventListener('resize', draw);
+    
     document.fonts.ready.then(draw);
     setTimeout(draw, 500); 
 
@@ -367,4 +406,5 @@ html_code = """
 </html>
 """
 
+# スクロールバーなしで全画面埋め込み
 components.html(html_code, height=1000, scrolling=False)
