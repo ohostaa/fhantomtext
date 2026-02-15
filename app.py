@@ -60,4 +60,4 @@ if generate_btn:
             )
             
         except Exception as e:
-            st.error(f"エラーが発生しました", {e})
+            st.error(f"エラーが発生しました {e}")
